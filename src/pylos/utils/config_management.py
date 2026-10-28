@@ -3,7 +3,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def dict_deep_merge(obj: dict, replaced_key: dict, deep_copy: bool = True) -> dict:
+def dict_replace_by_key(obj: dict, replaced_key: dict, deep_copy: bool = True) -> dict:
     """Replace values in a nested dict by key name, at any depth.
 
     For each ``key: value`` in ``replaced_key``, the key is looked up in ``obj``
@@ -30,13 +30,13 @@ def dict_deep_merge(obj: dict, replaced_key: dict, deep_copy: bool = True) -> di
 
     Examples:
         >>> cfg = {"a": {"b": 1}, "c": 2}
-        >>> dict_deep_merge(cfg, {"b": 9})
+        >>> dict_replace_by_key(cfg, {"b": 9})
         {'a': {'b': 9}, 'c': 2}
         >>> cfg
         {'a': {'b': 1}, 'c': 2}
     """
 
-    def _recusive_merge(obj: dict, replaced_key: dict) -> dict:
+    def _replace_recursively(obj: dict, replaced_key: dict) -> dict:
         """Replace keys in ``obj`` in place, searching nested dicts for keys it lacks.
 
         A key found at this level is replaced here, and the search for it stops,
@@ -49,7 +49,7 @@ def dict_deep_merge(obj: dict, replaced_key: dict, deep_copy: bool = True) -> di
             elif r_key not in obj and isinstance(obj, dict):
                 for key in obj.keys():
                     if isinstance(obj[key], dict):
-                        _recusive_merge(obj=obj[key], replaced_key={r_key: r_value})
+                        _replace_recursively(obj=obj[key], replaced_key={r_key: r_value})
 
             # Base Case if the key is not in the object get back to the previous level
             elif r_key not in obj and not isinstance(obj, dict):
@@ -61,4 +61,4 @@ def dict_deep_merge(obj: dict, replaced_key: dict, deep_copy: bool = True) -> di
         import copy
 
         obj = copy.deepcopy(obj)
-    return _recusive_merge(obj=obj, replaced_key=replaced_key)
+    return _replace_recursively(obj=obj, replaced_key=replaced_key)

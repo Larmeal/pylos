@@ -2,7 +2,7 @@ from typing import NamedTuple
 
 import pytest
 
-from pylos.utils.config_management import dict_deep_merge
+from pylos.utils.config_management import dict_replace_by_key
 
 
 class Case(NamedTuple):
@@ -196,14 +196,14 @@ CASES = [
 
 
 @pytest.mark.parametrize("case", CASES)
-def test_dict_deep_merge_replaces_keys_by_name_at_any_depth(case: Case) -> None:
-    result = dict_deep_merge(case.obj, case.replaced_key, case.deep_copy)
+def test_dict_replace_by_key_replaces_keys_by_name_at_any_depth(case: Case) -> None:
+    result = dict_replace_by_key(case.obj, case.replaced_key, case.deep_copy)
     assert result == case.expected
 
 
 def test_deep_copy_true_leaves_original_untouched() -> None:
     obj = {"x": {"y": 1}}
-    result = dict_deep_merge(obj, {"y": 9}, deep_copy=True)
+    result = dict_replace_by_key(obj, {"y": 9}, deep_copy=True)
 
     assert obj == {"x": {"y": 1}}
     assert result is not obj
@@ -212,7 +212,7 @@ def test_deep_copy_true_leaves_original_untouched() -> None:
 
 def test_deep_copy_false_mutates_in_place() -> None:
     obj = {"x": {"y": 1}}
-    result = dict_deep_merge(obj, {"y": 9}, deep_copy=False)
+    result = dict_replace_by_key(obj, {"y": 9}, deep_copy=False)
 
     assert result is obj
     assert obj == {"x": {"y": 9}}

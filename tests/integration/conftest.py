@@ -8,7 +8,7 @@ import pytest
 from pylos.engines.pandas import PandasEngine
 from pylos.results import ActionName, Severity
 from pylos.runner import Runner
-from pylos.utils.config_management import dict_deep_merge
+from pylos.utils.config_management import dict_replace_by_key
 
 ENGINE_ID = "test-end-to-end-local"
 CONTRACT_NAME = "orders"
@@ -69,7 +69,7 @@ def make_runner(workspace: Workspace) -> MakeRunner:
                 "dead_letter": str(workspace["dead_letter"]),
             },
         }
-        config = dict_deep_merge(config, engine_overrides)
+        config = dict_replace_by_key(config, engine_overrides)
         return Runner(engine=PandasEngine.model_validate(config))
 
     return _make
