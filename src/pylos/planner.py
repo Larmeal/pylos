@@ -901,10 +901,11 @@ class Planner:
 
         Returns:
             Every object the source's glob pattern matched, as
-            ``SourceObjectMetadata`` (path, size, modified time), sorted by
-            path. Sorting makes the five-object preview in
-            ``Plan._object_lines`` and the full listing the same on every
-            run, whatever order the backend listed them in.
+            ``SourceObjectMetadata`` (path, size, modified time), sorted
+            alphabetically by path. The backend's ``glob`` does the sorting,
+            so the plan lists objects in the same order the runner will
+            process them, and the five-object preview in
+            ``Plan._object_lines`` is the same on every run.
 
         Examples:
             For ``source.file_path: "data/test_*.csv"`` matching three
@@ -915,11 +916,10 @@ class Planner:
         Note:
             What "glob" means for local files or a GCS bucket is decided by
             the storage backend (``self.backend.glob``, e.g.
-            ``storages/local.py``). This method only calls it and sorts the
-            result, so it works unchanged for every backend that implements
-            ``StorageBackend``.
+            ``storages/local.py``). This method only calls it, so it works
+            unchanged for every backend that implements ``StorageBackend``.
         """
-        return sorted(self.backend.glob(pattern=self.source_config.file_path), key=lambda x: x.path)
+        return self.backend.glob(pattern=self.source_config.file_path)
 
     def plan(self) -> Plan:
         """Resolves the declaration into a ``Plan``. This is the class's main entry point.

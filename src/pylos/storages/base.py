@@ -2,12 +2,27 @@
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 
 from pydantic import BaseModel
 
 from pylos.results import SourceObjectMetadata
+
+_DIGITS = re.compile(r"(\d+)")
+
+
+def _natural_key(path: str) -> tuple[list[str | int], str]:
+    """Sort key that orders paths a-z, ignoring case, with runs of digits compared as numbers.
+
+    ``test_2.csv`` sorts before ``test_10.csv``. ``re.split`` with a capturing group always
+    returns text and number pieces in alternating positions, so two keys never compare a
+    ``str`` with an ``int``. The raw path is the tie-breaker, so ``test_01`` and ``test_1``
+    (equal as numbers) still sort the same way every run.
+    """
+    pieces = _DIGITS.split(path.casefold())
+    return [int(piece) if index % 2 else piece for index, piece in enumerate(pieces)], path
 
 
 class BaseStorage(BaseModel, ABC):
@@ -31,21 +46,22 @@ class BaseStorage(BaseModel, ABC):
 
         A template method. The shape of the result is fixed here so every backend
         agrees on it: sorted by ``path`` for a reproducible processing order, with
-        no directories. Backends supply the two halves: ``_list_files`` walks the
-        backend, and ``_to_metadata`` turns one native entry into a
-        ``SourceObjectMetadata``.
+        no directories. The order is a-z ignoring case, with numbers compared by
+        value (``test_2`` before ``test_10``). Backends supply the two halves:
+        ``_list_files`` walks the backend, and ``_to_metadata`` turns one native
+        entry into a ``SourceObjectMetadata``.
 
         Args:
             pattern: A glob in the backend's syntax, such as ``data/test_*.csv``.
                 A pattern containing no wildcard matches only itself.
 
         Returns:
-            The matching objects, sorted by ``path``. Empty when nothing matches,
-            which ``source.on_empty`` assigns meaning to.
+            The matching objects, sorted by ``path`` in natural order. Empty when
+            nothing matches, which ``source.on_empty`` assigns meaning to.
         """
         return sorted(
             (self._to_metadata(entry) for entry in self._list_files(pattern)),
-            key=lambda meta: meta.path,
+            key=lambda meta: _natural_key(meta.path),
         )
 
     @abstractmethod
