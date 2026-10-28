@@ -828,6 +828,8 @@ class Plan:
 
         total = len(self.source_objects)
         noun = "object" if total == 1 else "objects"
+        rule_count = len(self.contract.expectations)
+        rule_noun = "expectation" if rule_count == 1 else "expectations"
 
         lines = ["", f"  PYLOS plan · {self.engine_id} · {self.engine_name}", ""]
         lines.extend(self._source_box())
@@ -840,7 +842,7 @@ class Plan:
         lines.extend(self._on_failure_box())
         lines.append("")
         lines.extend(self._report_box())
-        lines.extend(["", f"  Plan: {total:,} {noun} · {len(self.contract.expectations)} expectations", ""])
+        lines.extend(["", f"  Plan: {total:,} {noun} · {rule_count} {rule_noun}", ""])
         return "\n".join(lines)
 
 
