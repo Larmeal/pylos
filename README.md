@@ -73,8 +73,6 @@ same sink. Profiling never fails, so only validation can trigger an action on th
   touched, so a network blip cannot quarantine healthy files.
 - A bad file is skipped and recorded, and the remaining files still run.
 - The library returns the reasoning behind every result. The CLI is a thin wrapper around it.
-- Custom expectations: subclass GX's own `Expectation`, register it, and use its name as an
-  `expectation_type` in the contract, the same way as a built-in one.
 - Editor autocomplete comes from a JSON Schema generated from the same Pydantic models Pylos
   validates with, so the schema always matches what the code accepts.
 
@@ -115,8 +113,8 @@ on_failure:
 
 | | Ships |
 |---|---|
-| v0.1 | pandas · local · CSV, end to end · `action: ignore\|move\|copy\|delete` · custom expectations · JSON sink · GX Data Docs · library API · error taxonomy · retry-safe reports |
-| v0.2 | GCS · BigQuery sink · `merge` · checkpoint / resume |
+| v0.1 | pandas · local · CSV, end to end · `action: ignore\|move\|copy\|delete` · JSON sink · GX Data Docs · library API · error taxonomy · retry-safe reports |
+| v0.2 | GCS · BigQuery sink · `merge` · checkpoint / resume · custom expectations |
 | v0.3 | Jinja · contract reuse · CLI |
 | v0.4 | Spark |
 | v0.5 | SQL |
