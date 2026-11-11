@@ -206,3 +206,13 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Local
+/data
+/output
+/secret/
+.claude/settings*
+tmp*
+
+# Working notes, not a repo artifact
+PROJECT_SUMMARY.md

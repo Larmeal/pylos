@@ -1,0 +1,11 @@
+title = "Gitleaks Config"
+
+[allowlist]
+description = "Ignore sample secrets in test files"
+paths = [
+    '''tests/.*''',
+    '''.*\.mock$'''
+]
+
+[extend]
+useDefault = true

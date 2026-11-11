@@ -1,0 +1,158 @@
+# Pylos configuration: annotated reference
+#
+# Every field the code accepts today is shown here with its allowed values.
+# Blocks marked [planned] are part of the design but are not accepted yet: a key
+# Pylos does not know fails when the file loads.
+#
+# For a runnable starting point, copy example/configs/minimal.yml instead.
+
+# ---------------------------------------------------------------------------
+# Identity
+# ---------------------------------------------------------------------------
+
+# Stable name for this pipeline. Must survive a file move or an expectation
+# edit, otherwise reporting history fragments. Forms part of run_id, which is
+# "<contract name>-<id>".
+id: customer_daily
+
+# Which engine loads and validates the data.
+engine: pandas                        # pandas (spark and sql are planned)
+
+# ---------------------------------------------------------------------------
+# Source: where the data comes from
+# ---------------------------------------------------------------------------
+
+source:
+  storage: local                      # local | gcs [planned: not usable yet]
+  file_format: csv                    # only csv is read today
+  file_path: data/customer_*.csv      # glob; each match is read and validated separately
+
+  # What it means when a file has a header but no rows. An empty file passes
+  # every column expectation, so declare whether this pipeline treats one as a
+  # failure. A glob that matches no file at all raises FileNotFoundError and
+  # writes no report, whatever this says.
+  on_empty: skip                      # skip (default) | fail
+
+  # Passed straight to the engine's reader (pd.read_csv).
+  options:
+    delimiter: ","
+    encoding: utf-8
+
+# A table source instead of files [planned]: it has no file_path or file_format,
+# and no file action applies to it.
+#
+# source:
+#   storage: bigquery
+#   project: my-project
+#   dataset: raw
+#   table: customers
+
+# ---------------------------------------------------------------------------
+# Validation
+# ---------------------------------------------------------------------------
+
+validation:
+
+  # The contract: which expectations to apply, written inline. A shared contract
+  # file is [planned]:
+  #
+  #   contract: contracts/customer.yml
+  #
+  contract:
+    name: customer
+    description: Rules every daily customer file must satisfy.
+
+    expectations:
+        # expectation_type is a Great Expectations name, passed through unchanged.
+        # kwargs are that expectation's own arguments.
+      - expectation_type: expect_column_values_to_not_be_null
+        kwargs:
+          column: id
+        severity: critical            # critical (default) | warning | info
+
+        # Optional. A readable name for the rule in the report. Without one it
+        # becomes <contract name>_<expectation_type>, which two rules of the same
+        # type share; expectation_key is what tells them apart.
+        name: id_not_null
+
+        # Optional documentation, carried through to the report.
+        description: A customer without an id cannot be reconciled.
+        notes: Added after the 2026-03 incident.
+        meta:
+          owner: data-platform
+
+      - expectation_type: expect_column_values_to_be_unique
+        kwargs:
+          column: id
+        severity: critical
+        name: id_unique
+
+      - expectation_type: expect_column_values_to_be_between
+        kwargs:
+          column: age
+          min_value: 0
+          max_value: 120
+        severity: warning             # warning does not trigger the failure action
+
+  # An HTML view of the results, rendered by Great Expectations. Off by default:
+  # nothing is written and no directory is created. Pylos's own report under
+  # `report:` is the source of truth; this is only for people who want to browse.
+  data_docs:
+    enabled: false
+    # store_path: output/data_docs/   # required when enabled is true
+
+# ---------------------------------------------------------------------------
+# Failure handling: what happens to the source file
+# ---------------------------------------------------------------------------
+
+# A report is ALWAYS written; it is not one of these choices. These control only
+# what happens to the file itself.
+#
+# This sits beside `validation:` rather than inside it because it can also apply
+# to a file that could not be read at all, before any expectation runs.
+on_failure:
+  action: move                        # ignore (default) | move | copy | delete
+  dead_letter: output/dead-letters/   # required for move and copy, rejected for the others
+
+  # Which outcomes make the action fire.
+  #   decision      only a file judged bad (a critical expectation failed). A file
+  #                 Pylos could not read stays where it is and is reported as aborted.
+  #   any_failure   also a file that could not be read.
+  mode: decision                      # decision (default) | any_failure
+
+# ---------------------------------------------------------------------------
+# Reporting: always written
+# ---------------------------------------------------------------------------
+
+# One JSON document per run, at <path>/<run_id>.json. A rerun replaces it.
+report:
+  storage: local                      # local | gcs and bigquery [planned: fail at load]
+  format: file                        # file
+  path: output/reports/
+
+# ---------------------------------------------------------------------------
+# Planned: the design includes these, the code does not accept them yet
+# ---------------------------------------------------------------------------
+
+# Profiling: descriptive statistics recorded over time.
+#
+# profile:
+#   enabled: true
+#   sample:
+#     rows: 100000
+#
+# Runtime behavior, apart from what is checked.
+#
+# runtime:
+#   checkpoint: 1                     # write after each object; -1 writes once at the end
+#   is_continue: false                # skip objects this run already recorded
+#
+# Several reports at once, with a BigQuery table that merges on a key.
+#
+# report:
+#   - type: file
+#     path: output/reports/
+#   - type: bigquery
+#     dataset: data_quality
+#     write_mode: merge               # append | overwrite | merge
+#     merge_key: [run_id, source_object, expectation_key]

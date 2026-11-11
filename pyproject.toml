@@ -1,29 +1,70 @@
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14"]
+build-backend = "uv_build"
+
 [project]
-name = "cosmos"
-version = "0.1.0"
+name = "pylos"
+version = "0.0.1"
 description = "A framework for encapsulating Great Expectations within data pipelines, providing reusable validation layers, expectation suite management, and seamless pipeline integration."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Larmeal", email = "chutdanai.tho@gmail.com" }]
+keywords = ["great-expectations", "data-quality", "data-validation", "data-pipeline"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Typing :: Typed",
+]
 dependencies = [
-    "great-expectations>=1.15.1",
-    "pandas==3.0.1",
-    "pydantic==2.12.5",
-    "python-dotenv>=1.2.2",
+    "great-expectations>=1.17,<2",
+    "pandas>=2.1,<3",
+    "pydantic>=2.12,<3",
+    "pyyaml>=6,<7",
+]
+
+[project.urls]
+Homepage = "https://github.com/Larmeal/pylos"
+Repository = "https://github.com/Larmeal/pylos"
+Issues = "https://github.com/Larmeal/pylos/issues"
+
+[project.optional-dependencies]
+gcp = [
+    "fsspec>=2026.7.0",
+    "gcsfs>=2026.8.0",
+    "google-cloud-bigquery>=3.4,<4",
+    "google-cloud-storage>=3.10,<4",
+]
+spark = [
+    "great-expectations[spark]>=1.17,<2",
 ]
 
 [dependency-groups]
 dev = [
+    "commitizen>=4.18.0",
     "faker>=40.11.1",
+    "ipykernel>=7.2.0",
     "pendulum>=3.2.0",
-    "pre-commit>=4.5.1",
+    "prek>=0.3.8",
+    "pytest>=8",
+    "pytest-cov>=7.1.0",
     "ruff>=0.15.7",
 ]
 docs = [
-    "mkdocs>=1.6.1",
+    "griffe-pydantic>=1.3.2",
+    "mike>=2.2.0",
+    "mkdocs>=1.6.1,<2",
+    "mkdocs-gen-files>=0.6.1",
+    "mkdocs-literate-nav>=0.6.3",
+    "mkdocs-material>=9.7.7",
+    "mkdocs-section-index>=0.3.12",
+    "mkdocstrings[python]>=1.0.7",
 ]
 
 [tool.ruff]
-line-length = 88
+line-length = 120
 target-version = "py311"
 
 [tool.ruff.lint]
@@ -35,9 +76,210 @@ select = [
     "N",   # pep8-naming – naming conventions (snake_case, PascalCase)
     "UP",  # pyupgrade – modernize Python syntax
     "B",   # flake8-bugbear – likely bugs and design issues
+    "ANN", # flake8-annotations – missing type hints
 ]
-ignore = []
+ignore = ["UP015", "E501", "ANN401"]
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.commitizen]
+name = "cz_customize"
+tag_format = "v$version"
+version_scheme = "pep440"
+version_provider = "uv"
+update_changelog_on_bump = true
+major_version_zero = true
+# Resolved from the working directory, so cz has to run from the repository root.
+template = ".github/changelog.md.j2"
+extras = { repository = "https://github.com/Larmeal/pylos" }
+
+[tool.commitizen.customize]
+message_template = "{{change_type}}{% if scope %}({{scope}}){% endif %}{% if breaking %}!{% endif %}: {{subject}}{% if body %}\n\n{{body}}{% endif %}"
+example = "fix(runner): stop swallowing validation errors"
+schema = """
+
+COMMIT MESSAGE FORMAT
+=====================
+
+    <type>(<scope>)<!>: <subject>
+    <BLANK LINE>
+    <body>
+
+    Example:  feat(sinks)!: replace write_mode flag with if_exists
+
+
+TYPES
+=====
+The release version is calculated from these types, so the choice matters.
+Ask "what does a user of the library notice?" and take the first match.
+
+  feat        bumps MINOR
+              A new capability that users can see or call.
+              Choose when: a user can now do something they could not before.
+              Not for:     fixing wrong behaviour (fix), restructuring (refactor).
+              Example:     feat(sinks): add BigQuery sink
+
+  fix         bumps PATCH
+              Corrects behaviour that was wrong.
+              Choose when: the old behaviour was a bug and a user would notice it is fixed,
+                           including better error handling for a case that used to break.
+              Not for:     cleaning up code that already behaved correctly (refactor).
+              Example:     fix(runner): stop swallowing validation errors
+
+  refactor    bumps PATCH
+              Restructures code while behaviour stays exactly the same.
+              Choose when: you renamed, moved, split or simplified code and no test
+                           expectation had to change.
+              Not for:     anything that changes output or errors (feat or fix).
+              Example:     refactor(engines): move pandas loading into base class
+
+  perf        bumps PATCH
+              Same behaviour, measurably faster or lighter on memory.
+              Choose when: the main goal and result is speed or resource use.
+              Example:     perf(gx): reuse the validator across batches
+
+  docs        bumps nothing
+              Documentation only: README, docstrings, comments, mkdocs pages.
+              Choose when: no executable line changed.
+              Example:     docs: explain how policies are merged
+
+  test        bumps nothing
+              Adds or changes tests only, with no change under src.
+              Choose when: you add coverage or fix a flaky test.
+              Not for:     a test added together with its fix or feature
+                           (use the type of the fix or feature).
+              Example:     test(runner): cover the on_failure modes
+
+  chore       bumps nothing, and is left out of the changelog
+              Housekeeping that only contributors see: development dependencies,
+              tooling and lint config, hooks, release files, formatting, and
+              how commits themselves are written (commitizen, prek).
+              Runtime dependencies and packaging belong to build.
+              Choose when: no other type fits and the library behaves the same.
+              Rule:        if only contributors benefit, not people who install
+                           pylos, it is chore, even when it adds a new tool or
+                           workflow step, and however large the change is.
+              Warning:     never use chore for a bug fix, or the fix will not be
+                           released and will not appear in the changelog.
+              Example:     chore: bump ruff in prek config
+
+  ci          bumps nothing
+              Changes to continuous integration: workflow files, pipeline
+              scripts, the steps that run tests, lint or release on a server.
+              Choose when: only CI configuration changed.
+              Not for:     local hooks and lint rules (chore), the tests
+                           themselves (test).
+              Example:     ci: run tests on python 3.11 and 3.12
+
+  build       bumps nothing
+              Changes to how the package is built or which libraries it needs
+              at runtime: build backend, [project] dependencies and extras,
+              Dockerfile, packaging metadata.
+              Choose when: the set of installed or built files would differ.
+              Not for:     development tools such as ruff or prek (chore).
+              Note:        if users must act on it (for example a higher minimum
+                           Python version), add "!" so the release is marked.
+              Example:     build: require great-expectations 1.17 or newer
+
+  revert      bumps nothing
+              Undoes an earlier commit. Write the reverted subject after the
+              colon and say which commit in the body.
+              Example:     revert: feat(sinks): add BigQuery sink
+                           (body) This reverts commit 1a2b3c4.
+              Caution:     the original commit stays in history, so if it is
+                           still after the last release tag it will still be
+                           counted by cz bump and listed in the changelog.
+                           If the reverted change was already released and
+                           users notice the difference, describe it with fix
+                           or feat instead, because revert will not bump.
+
+  bump        bumps nothing (it is the result of a bump)
+              Written by cz bump itself, for example
+              "bump: version 0.1.0 -> 0.2.0". Do not type it by hand: it does
+              not change the version, it only looks like a release.
+              It carries no bump rule on purpose, so a release commit never
+              triggers another release.
+
+  Prefixes that cz check lets through without matching the format:
+  Merge, Revert, Pull request, fixup!, squash!, amend!
+  (so git merge, git revert and autosquash commits are not blocked).
+
+
+MARKS AFTER THE TYPE
+====================
+  scope     optional. The part of the library you touched, in parentheses.
+            Only lowercase letters, "_" and "-" are allowed (e.g. runner, gx).
+            Leave it out when the change spans many parts.
+
+  !         optional. Put it directly before the colon for a breaking change.
+            Use it when users must change their own code or config to upgrade:
+            a removed or renamed public name, a changed config key, a new default.
+            Bumps MAJOR, or MINOR while the version is 0.x.
+
+
+SUBJECT AND BODY
+================
+  :         required. Followed by exactly one space.
+  subject   required. One line, imperative mood ("add", not "added"), lowercase
+            start, no trailing period. About 72 characters at most (convention,
+            not enforced).
+  body      optional. Starts after one blank line. Explain WHY the change was
+            needed and what to watch out for. The diff already shows WHAT.
+"""
+schema_pattern = '(?s)^(feat|fix|perf|refactor|docs|test|ci|build|chore|revert|bump)(\([a-z_-]+\))?!?: [^\n\r]+((\n\n.*)|(\s*))?$'
+change_type_map = { feat = "Feat", fix = "Fix", refactor = "Refactor", perf = "Perf" }
+commit_parser = '^((?P<change_type>feat|fix|refactor|perf|BREAKING CHANGE)(?:\((?P<scope>[^()\r\n]*)\)|\()?(?P<breaking>!)?|\w+!):\s(?P<message>.*)?'
+changelog_pattern = '^((BREAKING[\-\ ]CHANGE|\w+)(\(.+\))?!?):'
+
+[[tool.commitizen.customize.questions]]
+type = "list"
+name = "change_type"
+message = "Select the type of change\n\n"
+choices = [
+    { value = "feat", name = "feat: new capability users can call or see (bumps MINOR)" },
+    { value = "fix", name = "fix: corrects wrong behaviour users would notice (bumps PATCH)" },
+    { value = "refactor", name = "refactor: restructure only, behaviour unchanged (bumps PATCH)" },
+    { value = "perf", name = "perf: same behaviour, faster or lighter (bumps PATCH)" },
+    { value = "chore", name = "chore: dev tooling, lint/commit config, housekeeping; never a bug fix (no bump)" },
+    { value = "docs", name = "docs: README, docstrings or comments only (no bump)" },
+    { value = "test", name = "test: tests only, nothing under src changes (no bump)" },
+    { value = "ci", name = "ci: CI workflow and pipeline files only (no bump)" },
+    { value = "build", name = "build: packaging, runtime dependencies, Python version (no bump)" },
+]
+
+[[tool.commitizen.customize.questions]]
+type = "input"
+name = "scope"
+message = "Scope: the part you touched, e.g. runner, gx. using lowercase, '_' and '-' only (enter to skip)"
+
+[[tool.commitizen.customize.questions]]
+type = "confirm"
+name = "breaking"
+message = "Breaking change? Yes if users must change their code or config to upgrade (adds !)"
+default = false
+
+[[tool.commitizen.customize.questions]]
+type = "input"
+name = "subject"
+message = "Subject: one line, imperative, lowercase start, no period, e.g. add retry on failure"
+
+[[tool.commitizen.customize.questions]]
+type = "input"
+name = "body"
+message = "Body: why the change was needed and what to watch out for (enter to skip)"
+
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
+
+markers = [
+    "integration: needs real GCS/BigQuery or Spark; exclude with -m \"not integration\"",
+]

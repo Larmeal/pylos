@@ -1,0 +1,152 @@
+site_name: Pylos
+site_description: A framework for encapsulating Great Expectations within data pipelines.
+site_url: https://larmeal.github.io/pylos/
+repo_url: https://github.com/Larmeal/pylos
+repo_name: Larmeal/pylos
+edit_uri: edit/main/docs/
+
+# Every warning fails the build, so a broken link or an unparsable docstring
+# is caught on the pull request instead of on the published site.
+strict: true
+
+validation:
+  # A link to a heading that does not exist fails the build, so renaming a heading cannot
+  # silently break the links that point at it.
+  anchors: warn
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started/index.md
+  - Concepts:
+      - concepts/index.md
+      - Pipeline: concepts/pipeline.md
+      - Failure policy: concepts/failure-policy.md
+      - Reporting: concepts/reporting.md
+  - Configuration:
+      - configuration/index.md
+      - Source: configuration/source.md
+      - Validation: configuration/validation.md
+      - On failure: configuration/on-failure.md
+      - Report: configuration/report.md
+      - Planned keys: configuration/planned.md
+  - API Reference:
+      - reference/index.md
+      - Modules: reference/*
+
+extra_css:
+  - stylesheets/extra.css
+
+theme:
+  name: material
+  logo: assets/logo.png
+  favicon: assets/logo.png
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - content.action.edit
+    - content.code.annotate
+    - content.code.copy
+    - content.tabs.link
+    - navigation.footer
+    - navigation.path
+    - navigation.tabs
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: light blue
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: deep orange
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+
+plugins:
+  - search
+  # Builds reference/ from the source tree, so a new module needs no docs change.
+  - gen-files:
+      scripts:
+        - scripts/gen_ref_pages.py
+  # Reads the nav that gen_ref_pages.py writes to reference/SUMMARY.md.
+  - literate-nav:
+      nav_file: SUMMARY.md
+  - section-index
+  - mike:
+      version_selector: true
+      canonical_version: latest
+      # A redirect page instead of a symlink, which GitHub Pages does not always follow.
+      alias_type: redirect
+  - mkdocstrings:
+      handlers:
+        python:
+          # Read the source statically. No import happens, so the docs build needs
+          # neither Great Expectations nor any optional dependency installed.
+          paths: [src]
+          options:
+            allow_inspection: false
+            docstring_style: google
+            docstring_section_style: spacy
+            docstring_options:
+              # Returns: is prose, and its type comes from the signature. Without these two,
+              # every line becomes its own return row and "word: text" is read as a name.
+              returns_multiple_items: false
+              returns_named_value: false
+            filters: ["!^_"]
+            inherited_members: false
+            members_order: source
+            merge_init_into_class: true
+            separate_signature: true
+            show_if_no_docstring: false
+            show_root_heading: true
+            show_signature_annotations: true
+            show_source: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            signature_crossrefs: true
+            extensions:
+              - griffe_pydantic:
+                  schema: false
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+
+extra:
+  version:
+    provider: mike
+    default: latest
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Larmeal/pylos
+      name: GitHub repository

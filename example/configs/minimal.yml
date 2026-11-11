@@ -1,0 +1,30 @@
+# The smallest config Pylos will run.
+#
+# Validates every CSV matching the glob, moves any that fail to a dead-letter
+# directory, and writes one JSON report per run.
+
+id: my_dataset
+engine: pandas
+
+source:
+  storage: local
+  file_format: csv
+  file_path: data/*.csv
+
+validation:
+  contract:
+    name: my_contract
+    expectations:
+      - expectation_type: expect_column_values_to_not_be_null
+        kwargs:
+          column: id
+        severity: critical
+
+on_failure:
+  action: move
+  dead_letter: output/dead-letters/
+
+report:
+  storage: local
+  format: file
+  path: output/reports/

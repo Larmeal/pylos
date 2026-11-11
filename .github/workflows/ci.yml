@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+  # Called by release.yml, which tests the merged code again before it publishes.
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+      - run: uv run --locked --only-group dev prek run --all-files
+
+  unittest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+      - run: uv run --locked pytest --cov=pylos --cov-report=term-missing
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+      - run: uv run --locked --only-group docs mkdocs build --strict
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+      - name: Build the sdist and the wheel
+        run: uv build
+      - name: Install the wheel into an empty environment
+        run: |
+          uv venv /tmp/smoke
+          uv pip install --python /tmp/smoke/bin/python dist/*.whl
+      - name: Check what a user would get
+        run: |
+          /tmp/smoke/bin/python -I - <<'PY'
+          import importlib.metadata as metadata
+          import pathlib
+
+          import pylos
+
+          root = pathlib.Path(pylos.__file__).parent
+          assert "site-packages" in root.parts, f"imported from {root}, not from the installed wheel"
+          assert (root / "py.typed").is_file(), "py.typed is missing from the installed wheel"
+          print("pylos", metadata.version("pylos"), "OK")
+          PY

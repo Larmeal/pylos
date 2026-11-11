@@ -1,0 +1,31 @@
+/* Material shows the header logo at 1.2rem. The header bar is 2.4rem tall, so 1.8rem plus the
+   button's padding and margin fills it without spilling into the tab row below. */
+.md-header__button.md-logo {
+  padding: 0.1rem;
+}
+
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  height: 1.8rem;
+  width: auto;
+}
+
+/* Mermaid diagrams. Material paints every node in the accent color, which makes them all look
+   alike and brown on the dark palette. Neutral nodes let the colors a diagram sets on purpose
+   (failed, warned, passed, effect) carry meaning. Material draws diagrams inside a shadow root, so
+   only these variables reach them. */
+[data-md-color-scheme="default"] {
+  --md-mermaid-node-bg-color: #eef0f7;
+  --md-mermaid-node-fg-color: #24283b;
+  --md-mermaid-edge-color: #7f869b;
+  --md-mermaid-label-bg-color: var(--md-default-bg-color);
+  --md-mermaid-label-fg-color: #4a5068;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-mermaid-node-bg-color: #2b3042;
+  --md-mermaid-node-fg-color: #e3e6f0;
+  --md-mermaid-edge-color: #8a90a6;
+  --md-mermaid-label-bg-color: var(--md-default-bg-color);
+  --md-mermaid-label-fg-color: #aab0c4;
+}
