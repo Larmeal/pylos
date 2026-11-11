@@ -69,6 +69,6 @@ hooks = [
   {
     id = "commitizen-branch",
     stages = ["pre-push"],
-    args = ["--rev-range", "HEAD~1..HEAD"]
+    args = ["--rev-range", "origin/main..HEAD"]
   }
 ]
