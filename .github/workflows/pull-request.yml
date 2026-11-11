@@ -1,0 +1,121 @@
+name: Pull request
+
+# Everything that has to pass before a PR can be merged. Nothing here publishes anything.
+# release.yml calls this file again on main, so the same checks guard a release.
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+      - run: uv run --locked --only-group dev prek run --all-files
+
+  unittest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+      - run: uv run --locked pytest --cov=pylos --cov-report=term-missing
+
+  # Only checks that the docs build. The published copy is made by release.yml.
+  docs-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+      - run: uv run --locked --only-group docs mkdocs build --strict
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+      - name: Build the sdist and the wheel
+        run: uv build
+      - name: Install the wheel into an empty environment
+        run: |
+          uv venv /tmp/smoke
+          uv pip install --python /tmp/smoke/bin/python dist/*.whl
+      - name: Check what a user would get
+        run: |
+          /tmp/smoke/bin/python -I - <<'PY'
+          import importlib.metadata as metadata
+          import pathlib
+
+          import pylos
+
+          root = pathlib.Path(pylos.__file__).parent
+          assert "site-packages" in root.parts, f"imported from {root}, not from the installed wheel"
+          assert (root / "py.typed").is_file(), "py.typed is missing from the installed wheel"
+          print("pylos-gx", metadata.version("pylos-gx"), "OK")
+          PY
+
+  # A PR has no commit range when release.yml calls this file after a merge, so it is skipped there.
+  commit-format:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The whole history is needed to resolve the range and to find the last tag.
+          fetch-depth: 0
+          # cz reads only commit messages and tags, so old file contents are never fetched.
+          filter: blob:none
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+      # PRs are rebase-merged, so every commit lands on main with its own message and
+      # `cz bump` reads each one. A message that does not match is skipped without a warning.
+      - name: Check every commit of the PR against the commit schema
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: uv run --locked --only-group dev cz check --rev-range "$BASE_SHA..$HEAD_SHA"
+      - name: Show the release this PR would produce
+        run: |
+          set +e
+          output=$(uv run --locked --only-group dev cz bump --dry-run --yes 2>&1)
+          code=$?
+          {
+            echo "### Release preview"
+            echo
+            if [ "$code" -eq 0 ]; then
+              echo "Merging this PR would release:"
+            elif [ "$code" -eq 21 ]; then
+              echo "No release: none of the commits since the last tag is a feat, fix, refactor or perf."
+            else
+              echo "cz bump --dry-run failed with exit code $code:"
+            fi
+            echo
+            echo '```'
+            echo "$output" | head -n 100
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" -ne 0 ] && [ "$code" -ne 21 ]; then
+            echo "$output"
+            exit "$code"
+          fi
