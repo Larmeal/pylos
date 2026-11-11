@@ -1,7 +1,9 @@
 name: Release
 
-# Runs on every push to main. A merge with nothing releasable ends after the first job.
-# The bump commit this workflow pushes triggers it once more; that run also ends at `plan`.
+# Everything that happens after a PR is merged into main, in this order:
+#   plan -> test -> bump -> build -> publish -> github-release, docs-release
+# `docs-dev` runs beside them on every push. A merge with nothing releasable stops after
+# `plan`. The bump commit this workflow pushes triggers it once more, and that run stops there too.
 on:
   push:
     branches: [main]
@@ -49,11 +51,29 @@ jobs:
               ;;
           esac
 
+  # The "dev" copy of the docs follows main, so it runs on every push and does not wait for a release.
+  docs-dev:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+      - name: Configure git for mike
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - run: uv run --locked --only-group docs mike deploy --push dev
+
   # Publishing is irreversible, so the whole suite runs again on the merged code.
   test:
     needs: plan
     if: needs.plan.outputs.release == 'true'
-    uses: ./.github/workflows/ci.yml
+    uses: ./.github/workflows/pull-request.yml
 
   bump:
     needs: [plan, test]
@@ -164,10 +184,29 @@ jobs:
           notes=$(uv run --locked --only-group dev cz changelog "$TAG" --dry-run)
           gh release create "$TAG" --verify-tag --title "$TAG" --notes "$notes" --generate-notes
 
-  docs:
+  # The versioned copy of the docs, for the release that was just published.
+  docs-release:
     needs: [bump, publish]
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-    uses: ./.github/workflows/docs.yml
-    with:
-      tag: ${{ needs.bump.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.bump.outputs.tag }}
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+      - name: Configure git for mike
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Deploy the versioned docs and make it the default
+        env:
+          TAG: ${{ needs.bump.outputs.tag }}
+        run: |
+          version="${TAG#v}"
+          minor="${version%.*}"
+          uv run --locked --only-group docs mike deploy --push --update-aliases "$minor" latest
+          uv run --locked --only-group docs mike set-default --push latest
