@@ -91,6 +91,9 @@ version_scheme = "pep440"
 version_provider = "uv"
 update_changelog_on_bump = true
 major_version_zero = true
+# Resolved from the working directory, so cz has to run from the repository root.
+template = ".github/changelog.md.j2"
+extras = { repository = "https://github.com/Larmeal/pylos" }
 
 [tool.commitizen.customize]
 message_template = "{{change_type}}{% if scope %}({{scope}}){% endif %}{% if breaking %}!{% endif %}: {{subject}}{% if body %}\n\n{{body}}{% endif %}"

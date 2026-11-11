@@ -1,0 +1,173 @@
+name: Release
+
+# Runs on every push to main. A merge with nothing releasable ends after the first job.
+# The bump commit this workflow pushes triggers it once more; that run also ends at `plan`.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.plan.outputs.release }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # cz reads the commit messages and the tags, never the old file contents.
+          fetch-depth: 0
+          filter: blob:none
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+      - name: Decide whether the commits since the last tag call for a release
+        id: plan
+        run: |
+          set +e
+          output=$(uv run --locked --only-group dev cz bump --dry-run --yes 2>&1)
+          code=$?
+          echo "$output"
+          case "$code" in
+            0)
+              echo "release=true" >> "$GITHUB_OUTPUT"
+              ;;
+            3 | 21)
+              # 21: only docs, test, ci or chore commits since the last tag.
+              # 3: no commit since the last tag at all, which is the bump commit itself.
+              echo "release=false" >> "$GITHUB_OUTPUT"
+              echo "No release: nothing since the last tag is a feat, fix, refactor or perf."
+              ;;
+            *)
+              exit "$code"
+              ;;
+          esac
+
+  # Publishing is irreversible, so the whole suite runs again on the merged code.
+  test:
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
+    uses: ./.github/workflows/ci.yml
+
+  bump:
+    needs: [plan, test]
+    runs-on: ubuntu-latest
+    # The approval gate. A rejection here happens before anything is written to git.
+    environment: release
+    outputs:
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          # A deploy key is what the ruleset on main lets through. GITHUB_TOKEN cannot be added to it.
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Bump the version, write the changelog, push the commit and the tag
+        id: bump
+        run: |
+          uv run --locked --only-group dev cz bump --yes
+          tag=$(git describe --tags --abbrev=0)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          # Atomic: either the commit and the tag both land, or neither does. If main moved
+          # while this run waited for approval the push is rejected, and the newer run releases.
+          git push --atomic origin HEAD:main "refs/tags/$tag"
+
+  build:
+    needs: bump
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.bump.outputs.tag }}
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+      - name: Build the sdist and the wheel
+        run: uv build
+      - name: Install the wheel into an empty environment
+        run: |
+          uv venv /tmp/smoke
+          uv pip install --python /tmp/smoke/bin/python dist/*.whl
+      - name: Check what a user would get
+        env:
+          TAG: ${{ needs.bump.outputs.tag }}
+        run: |
+          /tmp/smoke/bin/python -I - <<'PY'
+          import importlib.metadata as metadata
+          import os
+          import pathlib
+
+          import pylos
+
+          root = pathlib.Path(pylos.__file__).parent
+          assert "site-packages" in root.parts, f"imported from {root}, not from the installed wheel"
+          assert (root / "py.typed").is_file(), "py.typed is missing from the installed wheel"
+          version = metadata.version("pylos")
+          expected = os.environ["TAG"].removeprefix("v")
+          assert version == expected, f"wheel is {version}, the tag is {expected}"
+          print("pylos", version, "OK")
+          PY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    # Must match the environment of the trusted publisher registered on PyPI.
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: [bump, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.bump.outputs.tag }}
+          fetch-depth: 0
+          filter: blob:none
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+      - name: Create the release from the changelog plus the PRs GitHub lists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.bump.outputs.tag }}
+        run: |
+          # --notes goes in front of the notes GitHub generates, which list the merged PRs.
+          notes=$(uv run --locked --only-group dev cz changelog "$TAG" --dry-run)
+          gh release create "$TAG" --verify-tag --title "$TAG" --notes "$notes" --generate-notes
+
+  docs:
+    needs: [bump, publish]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/docs.yml
+    with:
+      tag: ${{ needs.bump.outputs.tag }}
