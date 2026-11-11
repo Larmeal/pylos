@@ -1,3 +1,10 @@
+## v0.1.1 (2026-11-11)
+
+### Fix
+
+- **results**: read the version from the pylos-gx distribution ([`848584f`](https://github.com/Larmeal/pylos/commit/848584ffc0a8d00799c16299a642fc47f2634108))
+- **build**: publish under the pylos-gx distribution name ([`ec0f278`](https://github.com/Larmeal/pylos/commit/ec0f2788fd12a304ed16b958b8b399ea4e3dd919))
+
 ## v0.1.0 (2026-11-11)
 
 ### Feat
