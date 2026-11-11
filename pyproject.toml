@@ -2,8 +2,12 @@
 requires = ["uv_build>=0.13.1,<0.14"]
 build-backend = "uv_build"
 
+# The PyPI name (pylos-gx) differs from the import name, so the module is named here.
+[tool.uv.build-backend]
+module-name = "pylos"
+
 [project]
-name = "pylos"
+name = "pylos-gx"
 version = "0.1.0"
 description = "A framework for encapsulating Great Expectations within data pipelines, providing reusable validation layers, expectation suite management, and seamless pipeline integration."
 readme = "README.md"

@@ -116,10 +116,10 @@ jobs:
           root = pathlib.Path(pylos.__file__).parent
           assert "site-packages" in root.parts, f"imported from {root}, not from the installed wheel"
           assert (root / "py.typed").is_file(), "py.typed is missing from the installed wheel"
-          version = metadata.version("pylos")
+          version = metadata.version("pylos-gx")
           expected = os.environ["TAG"].removeprefix("v")
           assert version == expected, f"wheel is {version}, the tag is {expected}"
-          print("pylos", version, "OK")
+          print("pylos-gx", version, "OK")
           PY
       - uses: actions/upload-artifact@v7
         with:
