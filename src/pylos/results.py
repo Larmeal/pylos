@@ -7,7 +7,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-_PYLOS_VERSION = version("pylos")
+# The distribution on PyPI is pylos-gx, while the module is imported as pylos.
+_PYLOS_VERSION = version("pylos-gx")
 
 
 class ActionName(StrEnum):
