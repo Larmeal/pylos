@@ -69,5 +69,5 @@ jobs:
           root = pathlib.Path(pylos.__file__).parent
           assert "site-packages" in root.parts, f"imported from {root}, not from the installed wheel"
           assert (root / "py.typed").is_file(), "py.typed is missing from the installed wheel"
-          print("pylos", metadata.version("pylos"), "OK")
+          print("pylos-gx", metadata.version("pylos-gx"), "OK")
           PY
