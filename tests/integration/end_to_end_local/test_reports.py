@@ -99,7 +99,7 @@ def _expected_report(case: Case, source_file: Path) -> dict[str, Any]:
     result.update(case.expected_result or {})
 
     report: dict[str, Any] = {
-        "pylos_version": version("pylos"),
+        "pylos_version": version("pylos-gx"),
         "run_id": f"{CONTRACT_NAME}-{ENGINE_ID}",
         "run_ts": ANY,
         "results": [result],
