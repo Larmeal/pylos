@@ -1,7 +1,16 @@
-# The smallest config Pylos will run.
+# The smallest config Pylos accepts: only the keys that are required.
 #
-# Validates every CSV matching the glob, moves any that fail to a dead-letter
-# directory, and writes one JSON report per run.
+# It reads every CSV that matches the glob, checks each one against the contract
+# and writes one JSON report per run. A file that fails is left where it is,
+# because without an `on_failure` block the action is `ignore`.
+#
+# To move failing files aside, add:
+#
+#   on_failure:
+#     action: move
+#     dead_letter: output/dead-letters/
+#
+# See template.yml for every other key.
 
 id: my_dataset
 engine: pandas
@@ -18,11 +27,6 @@ validation:
       - expectation_type: expect_column_values_to_not_be_null
         kwargs:
           column: id
-        severity: critical
-
-on_failure:
-  action: move
-  dead_letter: output/dead-letters/
 
 report:
   storage: local
