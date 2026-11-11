@@ -16,9 +16,11 @@ several places, and a table sink takes a write mode.
 
 ```yaml title="Planned"
 report:
-  - type: file
+  - storage: local
+    format: file
     path: output/reports/
-  - type: bigquery
+  - storage: bigquery
+    format: table
     dataset: data_quality
     write_mode: merge # append | overwrite | merge
     merge_key: [run_id, source_object, expectation_key]

@@ -1,8 +1,12 @@
 # Pylos configuration: annotated reference
 #
-# Every field the code accepts today is shown here with its allowed values.
-# Blocks marked [planned] are part of the design but are not accepted yet: a key
-# Pylos does not know fails when the file loads.
+# Every key the code accepts today is written out here with its allowed values.
+# Everything that is part of the design but not in the code yet is commented out
+# and labelled [planned vX.Y]. Most of them make the file fail to load. Two load
+# without an error and still do not work: a {{ ... }} value is read as plain
+# text, and a gs:// dead_letter is tried on the local disk. Leave them commented.
+#
+# The version numbers come from the roadmap in the README and can move.
 #
 # For a runnable starting point, copy example/configs/minimal.yml instead.
 
@@ -16,14 +20,14 @@
 id: customer_daily
 
 # Which engine loads and validates the data.
-engine: pandas                        # pandas (spark and sql are planned)
+engine: pandas                        # pandas | spark [planned v0.4] | sql [planned v0.5]
 
 # ---------------------------------------------------------------------------
 # Source: where the data comes from
 # ---------------------------------------------------------------------------
 
 source:
-  storage: local                      # local | gcs [planned: not usable yet]
+  storage: local                      # local | gcs [planned v0.2]
   file_format: csv                    # only csv is read today
   file_path: data/customer_*.csv      # glob; each match is read and validated separately
 
@@ -38,8 +42,15 @@ source:
     delimiter: ","
     encoding: utf-8
 
-# A table source instead of files [planned]: it has no file_path or file_format,
-# and no file action applies to it.
+# Files in Google Cloud Storage [planned v0.2]. The path is a gs:// URI.
+#
+# source:
+#   storage: gcs
+#   file_format: csv
+#   file_path: gs://my-bucket/raw/customer_*.csv
+
+# A table instead of files [planned, after the SQL engine]. It has no file_path
+# or file_format, and no file action applies to it.
 #
 # source:
 #   storage: bigquery
@@ -53,11 +64,7 @@ source:
 
 validation:
 
-  # The contract: which expectations to apply, written inline. A shared contract
-  # file is [planned]:
-  #
-  #   contract: contracts/customer.yml
-  #
+  # The contract: which expectations to apply, written inline.
   contract:
     name: customer
     description: Rules every daily customer file must satisfy.
@@ -94,6 +101,14 @@ validation:
           max_value: 120
         severity: warning             # warning does not trigger the failure action
 
+    # Custom expectations [planned v0.2]: your own rules next to the Great
+    # Expectations ones. The shape of the config is not decided yet.
+
+  # A contract kept in its own file, shared by several pipelines
+  # [planned v0.3]. It replaces the inline `contract:` block above.
+  #
+  # contract: contracts/customer.yml
+
   # An HTML view of the results, rendered by Great Expectations. Off by default:
   # nothing is written and no directory is created. Pylos's own report under
   # `report:` is the source of truth; this is only for people who want to browse.
@@ -113,6 +128,7 @@ validation:
 on_failure:
   action: move                        # ignore (default) | move | copy | delete
   dead_letter: output/dead-letters/   # required for move and copy, rejected for the others
+                                      # a gs:// directory works once GCS lands [planned v0.2]
 
   # Which outcomes make the action fire.
   #   decision      only a file judged bad (a critical expectation failed). A file
@@ -126,33 +142,43 @@ on_failure:
 
 # One JSON document per run, at <path>/<run_id>.json. A rerun replaces it.
 report:
-  storage: local                      # local | gcs and bigquery [planned: fail at load]
-  format: file                        # file
+  storage: local                      # local | gcs [planned v0.2] | bigquery [planned v0.2]
+  format: file                        # file (a table format comes with bigquery)
   path: output/reports/
 
+# Several reports at once, with a BigQuery table that merges on a key
+# [planned v0.2]. `report` becomes a list, and the block above becomes its first
+# item.
+#
+# report:
+#   - storage: local
+#     format: file
+#     path: output/reports/
+#   - storage: bigquery
+#     format: table
+#     dataset: data_quality
+#     write_mode: merge               # append | overwrite | merge
+#     merge_key: [run_id, source_object, expectation_key]
+
 # ---------------------------------------------------------------------------
-# Planned: the design includes these, the code does not accept them yet
+# Planned: sections that do not exist in the code yet
 # ---------------------------------------------------------------------------
 
-# Profiling: descriptive statistics recorded over time.
+# Runtime behavior, apart from what is checked [planned v0.2].
+#
+# runtime:
+#   checkpoint: 1                     # write after each object; -1 writes once at the end
+#   is_continue: false                # skip objects this run already recorded; needs a run key
+
+# Profiling: descriptive statistics recorded over time [planned v0.6].
 #
 # profile:
 #   enabled: true
 #   sample:
 #     rows: 100000
+
+# Jinja in the file [planned v0.3]. Values come from the environment, so
+# secrets and per-environment paths stay out of the file.
 #
-# Runtime behavior, apart from what is checked.
-#
-# runtime:
-#   checkpoint: 1                     # write after each object; -1 writes once at the end
-#   is_continue: false                # skip objects this run already recorded
-#
-# Several reports at once, with a BigQuery table that merges on a key.
-#
-# report:
-#   - type: file
-#     path: output/reports/
-#   - type: bigquery
-#     dataset: data_quality
-#     write_mode: merge               # append | overwrite | merge
-#     merge_key: [run_id, source_object, expectation_key]
+# source:
+#   file_path: "{{ env_var('DATA_DIR') }}/customer_*.csv"

@@ -9,8 +9,9 @@ runs it on two small CSV files, and reads what comes out.
 
 !!! info "Install"
 
-    Pylos is not on PyPI yet. From a clone of the repository, `uv sync` installs it with its
-    dependencies.
+    Pylos needs Python 3.11 or newer. It is published on PyPI as `pylos-gx` and imported as
+    `pylos`, so install it with `pip install pylos-gx` or `uv add pylos-gx`. To work on Pylos
+    itself, clone the repository and run `uv sync`.
 
 ## 📝 A complete config
 

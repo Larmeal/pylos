@@ -57,10 +57,127 @@ Source ──[ Engine ]────►┤                  ├────► Si
 Profiling and validation read the source the same way, run on the same engine, and write to the
 same sink. Profiling never fails, so only validation can trigger an action on the source file.
 
+## Get started
+
+Pylos needs Python 3.11 or newer. It is published on PyPI as `pylos-gx` and imported as `pylos`.
+
+```bash
+pip install pylos-gx      # or: uv add pylos-gx
+```
+
+### 1. Write the pipeline
+
+A pipeline is one YAML file. Save this one as `pipeline.yml`. It checks every customer file in `data/`
+and moves a file to a dead-letter directory when it breaks a critical rule.
+
+```yaml
+id: customer_daily
+engine: pandas
+
+source:
+  storage: local
+  file_format: csv
+  file_path: data/customers_*.csv      # a glob: each match is validated on its own
+
+validation:
+  contract:
+    name: customer
+    expectations:
+      - expectation_type: expect_column_values_to_not_be_null
+        kwargs:
+          column: id
+        severity: critical             # critical | warning | info
+
+      - expectation_type: expect_column_values_to_be_between
+        kwargs:
+          column: age
+          min_value: 0
+          max_value: 120
+        severity: warning
+
+on_failure:
+  action: move                         # ignore | move | copy | delete
+  dead_letter: output/dead-letters/
+
+report:
+  storage: local
+  format: file
+  path: output/reports/
+```
+
+An `expectation_type` is the name of a Great Expectations expectation, and `kwargs` are its own
+arguments, passed through unchanged. Only a failing `critical` expectation triggers `on_failure`.
+A `warning` or `info` failure is recorded in the report and nothing else happens.
+
+`id`, `engine`, `source`, `validation` and `report` are required. Everything else has a default:
+`severity` is `critical`, and without `on_failure` a failing file stays where it is.
+
+Check the spelling inside an expectation. A key Pylos does not know is ignored there without an
+error, so `severty: warning` quietly runs as `critical`.
+
+### 2. Add some data
+
+Save these two files in a `data/` directory. First `data/customers_good.csv`:
+
+```csv
+id,age
+1,34
+2,29
+3,41
+```
+
+Then `data/customers_bad.csv`, which has a missing id and an age that is too high:
+
+```csv
+id,age
+1,34
+,29
+3,150
+```
+
+### 3. Run it
+
+Save this as `run.py` and run `python run.py`.
+
+```python
+from pylos.loader import from_yaml
+from pylos.runner import Runner
+
+Runner(from_yaml("pipeline.yml")).run()
+```
+
+`from_yaml` reads and validates the file, so a missing key or a wrong value fails here and not
+halfway through a run. `run()` returns nothing: everything it learned goes to the report.
+
+### 4. Read the result
+
+```text
+data/customers_good.csv
+output/dead-letters/customers_bad.csv
+output/reports/customer-customer_daily.json
+```
+
+| File | Decision | What happened |
+|---|---|---|
+| `customers_good.csv` | `passed` | Left where it was. |
+| `customers_bad.csv` | `failed` | Moved to `output/dead-letters/`. The missing `id` is a critical failure. The age of 150 broke a warning rule, which is recorded and does nothing else. |
+
+The report is one JSON file per run, named `<contract name>-<id>.json`. It has two verdicts at the
+top: `run_status` (`completed`) says Pylos finished its job, and `decision` (`failed`) says at least
+one file held bad data. Each file in `results` lists every expectation with its counts.
+
+### Where to go next
+
+- [`example/configs/minimal.yml`](https://github.com/Larmeal/pylos/blob/main/example/configs/minimal.yml)
+  is the smallest config Pylos accepts.
+- [`example/configs/template.yml`](https://github.com/Larmeal/pylos/blob/main/example/configs/template.yml)
+  lists every key, including the ones planned for later versions (commented out).
+- The [documentation](https://larmeal.github.io/pylos/latest/) covers each section of the config and how failures are decided.
+
 ## Features
 
-- One YAML file per pipeline, parsed and validated by Pydantic. A typo fails when the file loads,
-  not ten minutes into a run.
+- One YAML file per pipeline, parsed and validated by Pydantic. A missing key or a wrong value fails
+  when the file loads, not ten minutes into a run.
 - Each expectation has a severity: `critical`, `warning` or `info`. The severity decides whether
   the pipeline acts on a failure.
 - On failure, Pylos can `ignore`, `move`, `copy` or `delete` the source file. The storage system
@@ -75,29 +192,6 @@ same sink. Profiling never fails, so only validation can trigger an action on th
 - The library returns the reasoning behind every result. The CLI is a thin wrapper around it.
 - Editor autocomplete comes from a JSON Schema generated from the same Pydantic models Pylos
   validates with, so the schema always matches what the code accepts.
-
-```yaml
-id: customer_daily
-engine: pandas
-
-source:
-  storage: local                # local | gcs
-  file_format: csv
-  file_path: data/*.csv
-  on_empty: fail                # fail | skip
-
-validation:
-  contract:
-    name: customer
-    expectations:
-      - expectation_type: expect_column_values_to_not_be_null
-        kwargs: {column: id}
-        severity: critical      # critical | warning | info
-
-on_failure:
-  action: move                  # ignore | move | copy | delete
-  dead_letter: output/dead-letters/
-```
 
 ## Not in scope
 
@@ -122,7 +216,7 @@ on_failure:
 
 ## Status
 
-Pylos is pre-v0.1 and under active construction. The local path works end to end with pandas and
+Pylos 0.1 is on PyPI as `pylos-gx`. The local path works end to end with pandas and
 CSV files: configuration, the GX adapter, local storage, the planner, the policy, the file actions
 (`ignore`, `move`, `copy`, `delete`) and the local JSON report sink. `run()` writes the report to
 the sink and returns nothing. GCS storage, the GCS sink and the BigQuery sink are placeholders
