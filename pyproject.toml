@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "pylos"
-version = "0.0.1"
+version = "0.1.0"
 description = "A framework for encapsulating Great Expectations within data pipelines, providing reusable validation layers, expectation suite management, and seamless pipeline integration."
 readme = "README.md"
 requires-python = ">=3.11"
