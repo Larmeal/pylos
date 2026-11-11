@@ -1,4 +1,4 @@
-name: Pull request
+name: pull-request
 
 # Everything that has to pass before a PR can be merged. Nothing here publishes anything.
 # release.yml calls this file again on main, so the same checks guard a release.

@@ -1,4 +1,4 @@
-name: Release
+name: release
 
 # Everything that happens after a PR is merged into main, in this order:
 #   plan -> test -> bump -> build -> publish -> github-release, docs-release
